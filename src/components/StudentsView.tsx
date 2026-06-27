@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Student, StudentStatus, TestRecord } from '../types';
+import { Student, StudentStatus, TestRecord, PerformanceTagType } from '../types';
 import { 
   Search, 
   Filter, 
@@ -97,7 +97,7 @@ export default function StudentsView({
   const [editStudentPhone, setEditStudentPhone] = useState('');
   const [editStudentWeak, setEditStudentWeak] = useState('');
   const [editStudentStrong, setEditStudentStrong] = useState('');
-  const [editStudentPerformanceTag, setEditStudentPerformanceTag] = useState<'Improved' | 'Needs Attention' | 'Consistent'>('Consistent');
+  const [editStudentPerformanceTag, setEditStudentPerformanceTag] = useState<PerformanceTagType>('Consistent');
 
   const handleOpenEditModal = () => {
     if (!currentStudent) return;
@@ -157,8 +157,12 @@ export default function StudentsView({
     const student = students.find(s => s.id === studentId);
     if (student && student.performanceTag) {
       const tag = student.performanceTag;
-      if (tag === 'Improved') {
-        return { label: 'Improved', bg: 'bg-emerald-50 border-emerald-100 text-emerald-700', dot: 'bg-emerald-500', icon: TrendingUp };
+      if (tag === 'Excellent') {
+        return { label: 'Excellent', bg: 'bg-indigo-50 border-indigo-100 text-indigo-700', dot: 'bg-indigo-500', icon: Award };
+      } else if (tag === 'Good') {
+        return { label: 'Good', bg: 'bg-teal-50 border-teal-100 text-teal-700', dot: 'bg-teal-500', icon: CheckCircle };
+      } else if (tag === 'Improving' || tag === 'Improved') {
+        return { label: 'Improving', bg: 'bg-emerald-50 border-emerald-100 text-emerald-700', dot: 'bg-emerald-500', icon: TrendingUp };
       } else if (tag === 'Needs Attention') {
         return { label: 'Needs Attention', bg: 'bg-amber-50 border-amber-100 text-amber-700', dot: 'bg-amber-500', icon: AlertTriangle };
       } else if (tag === 'Consistent') {
@@ -384,6 +388,39 @@ Provide only the direct insight sentence. Keep it concise (less than 35 words), 
                   <p className="text-xs text-indigo-600 font-bold flex items-center gap-1.5">
                     <BookOpen className="w-4 h-4 text-indigo-500" /> Active Subjects: {currentStudent.subject}
                   </p>
+
+                  <div className="flex flex-wrap items-center gap-2 mt-2 p-1.5 bg-slate-50 border border-slate-150/75 rounded-xl max-w-max select-none">
+                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 px-1.5">Set Status:</span>
+                    {[
+                      { value: 'Excellent', label: 'Excellent', bg: 'hover:bg-indigo-600 hover:text-white', active: 'bg-indigo-600 text-white border-indigo-600' },
+                      { value: 'Good', label: 'Good', bg: 'hover:bg-teal-600 hover:text-white', active: 'bg-teal-600 text-white border-teal-600' },
+                      { value: 'Improving', label: 'Improving', bg: 'hover:bg-emerald-600 hover:text-white', active: 'bg-emerald-600 text-white border-emerald-600' },
+                      { value: 'Needs Attention', label: 'Needs Attention', bg: 'hover:bg-amber-600 hover:text-white', active: 'bg-amber-600 text-white border-amber-600' }
+                    ].map((btn) => {
+                      const isCurrent = currentStudent.performanceTag === btn.value || 
+                        (btn.value === 'Needs Attention' && currentStudent.id === 'std-diya' && !currentStudent.performanceTag) ||
+                        (btn.value === 'Needs Attention' && currentStudent.id === 'std-sara' && !currentStudent.performanceTag);
+                      return (
+                        <button
+                          key={btn.value}
+                          type="button"
+                          onClick={() => {
+                            onUpdateStudent({
+                              ...currentStudent,
+                              performanceTag: btn.value as any
+                            });
+                          }}
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+                            isCurrent 
+                              ? btn.active 
+                              : 'bg-white text-slate-600 border-slate-200 hover:shadow-sm ' + btn.bg
+                          }`}
+                        >
+                          {btn.label}
+                        </button>
+                      );
+                    })}
+                  </div>
 
                   <button
                     onClick={handleOpenEditModal}
@@ -1276,9 +1313,12 @@ Provide only the direct insight sentence. Keep it concise (less than 35 words), 
                         onChange={(e) => setEditStudentPerformanceTag(e.target.value as any)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-600 cursor-pointer text-slate-600 font-bold"
                       >
-                        <option value="Improved">Improved</option>
+                        <option value="Excellent">Excellent</option>
+                        <option value="Good">Good</option>
+                        <option value="Improving">Improving</option>
                         <option value="Needs Attention">Needs Attention</option>
                         <option value="Consistent">Consistent</option>
+                        <option value="Improved">Improved</option>
                       </select>
                     </div>
 

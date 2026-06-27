@@ -1,5 +1,5 @@
 export type StudentStatus = 'green' | 'amber' | 'red';
-export type PerformanceTagType = 'Improved' | 'Needs Attention' | 'Consistent';
+export type PerformanceTagType = 'Excellent' | 'Good' | 'Improving' | 'Needs Attention' | 'Consistent' | 'Improved';
 
 export interface TestRecord {
   id: string;
