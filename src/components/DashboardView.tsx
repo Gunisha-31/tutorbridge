@@ -19,7 +19,8 @@ import {
   FileSpreadsheet,
   Plus,
   RotateCw,
-  Check
+  Check,
+  Edit
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -42,17 +43,38 @@ interface DashboardViewProps {
 
 export default function DashboardView({ students, onTabChange, onSelectStudent, onDeepLinkTools, onUpdateStudent }: DashboardViewProps) {
   const [selectedStudentIdForIntake, setSelectedStudentIdForIntake] = useState(students[0]?.id || '');
-  const [assessmentName, setAssessmentName] = useState('');
+  const [termExamType, setTermExamType] = useState('Midterm');
+  const [subjectCourse, setSubjectCourse] = useState('Mathematics');
+  const [marksObtained, setMarksObtained] = useState<number | ''>(85);
+  const [totalMarks, setTotalMarks] = useState<number | ''>(100);
   const [assessmentDate, setAssessmentDate] = useState('2026-06-27');
-  const [assessmentScore, setAssessmentScore] = useState(85);
   const [rawIntakeText, setRawIntakeText] = useState('');
   const [isParsingText, setIsParsingText] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState('');
   const [intakeSuccessMsg, setIntakeSuccessMsg] = useState('');
   const [parsingError, setParsingError] = useState('');
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleStudentChange = (studentId: string) => {
+    setSelectedStudentIdForIntake(studentId);
+    const target = students.find(s => s.id === studentId);
+    if (target) {
+      setSubjectCourse(target.subject.split(',')[0]);
+    }
+  };
+
+  const handleUpdateTag = (student: Student, newTag: 'Improved' | 'Needs Attention' | 'Consistent') => {
+    if (!onUpdateStudent) return;
+    const updatedStudent: Student = {
+      ...student,
+      performanceTag: newTag
+    };
+    onUpdateStudent(updatedStudent);
+    setEditingStudentId(null);
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -71,7 +93,7 @@ export default function DashboardView({ students, onTabChange, onSelectStudent, 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
       setUploadedFileName(file.name);
-      setRawIntakeText(`Uploaded file: ${file.name}.\nRaw text content extracted from mark sheet scan: Student details indicate score achieved: 84% on Trigonometric Ratios Test conducted on 2026-06-25.`);
+      setRawIntakeText(`Uploaded file: ${file.name}.\nRaw text content extracted from marksheet scan: Student obtained 84 marks out of 100 in Trigonometric Ratios on Midterm conducted on 2026-06-25.`);
     }
   };
 
@@ -79,24 +101,26 @@ export default function DashboardView({ students, onTabChange, onSelectStudent, 
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setUploadedFileName(file.name);
-      setRawIntakeText(`Uploaded file: ${file.name}.\nRaw text content extracted from mark sheet scan: Student details indicate score achieved: 84% on Trigonometric Ratios Test conducted on 2026-06-25.`);
+      setRawIntakeText(`Uploaded file: ${file.name}.\nRaw text content extracted from marksheet scan: Student obtained 84 marks out of 100 in Trigonometric Ratios on Midterm conducted on 2026-06-25.`);
     }
   };
 
   const handleAIParsing = async () => {
     if (!rawIntakeText && !uploadedFileName) {
-      setParsingError('Please paste score text or drop a mark sheet file first.');
+      setParsingError('Please paste marksheet text or drop a marksheet file first.');
       return;
     }
     setIsParsingText(true);
     setParsingError('');
     
-    const prompt = `You are an AI academic assistant. Extract assessment details from the following student report/mark sheet snippet.
+    const prompt = `You are an AI academic assistant. Extract assessment details from the following student report/marksheet snippet.
 Format your response as a strict, raw JSON object with exactly these properties:
 {
-  "topic": "extracted test topic/subject (max 4 words)",
-  "date": "YYYY-MM-DD",
-  "score": number between 0 and 100
+  "term": "extracted term/exam type (e.g., Midterm, Finals, Unit Test 3)",
+  "subject": "extracted subject/course (e.g., Mathematics, Physics, Chemistry)",
+  "marksObtained": number,
+  "totalMarks": number,
+  "date": "YYYY-MM-DD"
 }
 Do not write any markdown blocks (like \`\`\`json), explanation, or other text. Just the single, raw JSON object string.
 
@@ -116,9 +140,11 @@ Snippet:
           cleanText = cleanText.replace(/```json/g, '').replace(/```/g, '').trim();
         }
         const parsed = JSON.parse(cleanText);
-        if (parsed.topic) setAssessmentName(parsed.topic);
+        if (parsed.term) setTermExamType(parsed.term);
+        if (parsed.subject) setSubjectCourse(parsed.subject);
+        if (parsed.marksObtained !== undefined) setMarksObtained(Number(parsed.marksObtained));
+        if (parsed.totalMarks !== undefined) setTotalMarks(Number(parsed.totalMarks));
         if (parsed.date) setAssessmentDate(parsed.date);
-        if (parsed.score) setAssessmentScore(Number(parsed.score));
       } else {
         setParsingError('Failed to parse text. Please enter values manually.');
       }
@@ -136,11 +162,21 @@ Snippet:
     const targetStudent = students.find(s => s.id === selectedStudentIdForIntake);
     if (!targetStudent) return;
 
+    const obtained = Number(marksObtained);
+    const total = Number(totalMarks);
+
+    if (isNaN(obtained) || isNaN(total) || total <= 0) {
+      setParsingError('Please specify valid numbers for marks obtained and total marks.');
+      return;
+    }
+
+    const calculatedScore = Math.round((obtained / total) * 100);
+
     const newTest: TestRecord = {
       id: `t-dynamic-${Date.now()}`,
       date: assessmentDate,
-      topic: assessmentName || 'Unit Diagnostic Drill',
-      score: Number(assessmentScore)
+      topic: `${termExamType} (${subjectCourse})`,
+      score: calculatedScore
     };
 
     const updatedTestHistory = [...targetStudent.testHistory, newTest];
@@ -153,10 +189,11 @@ Snippet:
     };
 
     onUpdateStudent(updatedStudent);
-    setIntakeSuccessMsg(`Score successfully registered! Added "${newTest.topic}" (${newTest.score}%) to ${targetStudent.name}'s academic dossier.`);
+    setIntakeSuccessMsg(`Marksheet successfully processed! Registered "${newTest.topic}" with ${obtained}/${total} marks (${calculatedScore}%) to ${targetStudent.name}'s profile.`);
     
     // Clear forms
-    setAssessmentName('');
+    setMarksObtained(85);
+    setTotalMarks(100);
     setUploadedFileName('');
     setRawIntakeText('');
     setTimeout(() => setIntakeSuccessMsg(''), 5000);
@@ -410,7 +447,7 @@ Snippet:
         </div>
       </div>
 
-      {/* NEW: MARK SHEET UPLOADER & AI SCORE INTAKE */}
+      {/* NEW: STUDENT MARKSHEET MANAGEMENT & AI INTAKE */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-4 mb-5 gap-3">
           <div className="flex items-center gap-2.5">
@@ -418,12 +455,12 @@ Snippet:
               <UploadCloud className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-base font-display">Mark Sheet Scan & Score Intake</h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">Upload exam sheets, drag PDF/images, or paste grades. Gemini extracts scores dynamically.</p>
+              <h3 className="font-bold text-slate-900 text-base font-display">Student Marksheet Management</h3>
+              <p className="text-[11px] text-slate-400 mt-0.5">Manage and record official student marksheets. Paste or upload official PDF, PNG, or JPEG copies for Gemini AI assistance.</p>
             </div>
           </div>
           <span className="text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-100 px-2.5 py-1 rounded-full uppercase tracking-wider self-start md:self-auto">
-            AI Automated Extraction
+            Official Academic Record
           </span>
         </div>
 
@@ -443,9 +480,9 @@ Snippet:
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* Left Column: Drag & Drop Scanned Mark Sheet area */}
+          {/* Left Column: Drag & Drop Scanned Marksheet Document area */}
           <div className="space-y-4">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Drag & Drop Scan or Mark Sheet Files</label>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Official Marksheet Document (PDF, PNG, JPEG allowed)</label>
             
             <div
               onDragEnter={handleDrag}
@@ -466,7 +503,7 @@ Snippet:
                 type="file" 
                 onChange={handleFileSelect}
                 className="hidden" 
-                accept="image/*,.pdf,.csv,.xlsx,.txt"
+                accept="image/png,image/jpeg,image/jpg,application/pdf"
               />
               
               {uploadedFileName ? (
@@ -476,10 +513,10 @@ Snippet:
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-800 truncate max-w-xs">{uploadedFileName}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">File registered successfully</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Marksheet document registered successfully</p>
                   </div>
-                  <span className="text-[9px] bg-emerald-500 text-white font-extrabold px-2 py-0.5 rounded uppercase tracking-wider">
-                    Ready to Parse
+                  <span className="text-[9px] bg-emerald-500 text-white font-extrabold px-2 py-0.5 rounded uppercase tracking-wider animate-pulse">
+                    Ready for AI Parsing
                   </span>
                 </div>
               ) : (
@@ -488,14 +525,14 @@ Snippet:
                     <UploadCloud className="w-6 h-6 text-indigo-500" />
                   </div>
                   <div>
-                    <p className="text-xs font-extrabold text-slate-700">Drag & drop scanned file here</p>
-                    <p className="text-[10px] text-slate-400 mt-1">Accepts images, reports, CSV spreadsheets, or text files</p>
+                    <p className="text-xs font-extrabold text-slate-700">Drag & drop marksheet file here</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Accepts official PDF, PNG, and JPEG marksheet files</p>
                   </div>
                   <button 
                     type="button"
-                    className="bg-slate-100 hover:bg-slate-200 text-[10px] font-bold py-1.5 px-3 rounded-lg border border-slate-200 text-slate-700 transition-colors"
+                    className="bg-slate-100 hover:bg-slate-200 text-[10px] font-bold py-1.5 px-3 rounded-lg border border-slate-200 text-slate-700 transition-colors cursor-pointer"
                   >
-                    Select File manually
+                    Browse Files manually
                   </button>
                 </div>
               )}
@@ -503,9 +540,9 @@ Snippet:
 
             {/* AI Paste assistant */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Paste Text or Scan Output (AI Assist)</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Paste Marksheet Snippet (AI Assist)</label>
               <textarea
-                placeholder="Paste raw email feedback, grade lists, or copy-paste text, e.g. 'Aarav Mehta obtained 88% on Unit Test 3 on June 25th 2026.'"
+                placeholder="Paste raw scores or copy-paste text, e.g., 'Diya Patel obtained 42 marks out of 50 on Finals Chemistry.'"
                 value={rawIntakeText}
                 onChange={(e) => setRawIntakeText(e.target.value)}
                 rows={3}
@@ -515,10 +552,10 @@ Snippet:
                 type="button"
                 onClick={handleAIParsing}
                 disabled={isParsingText}
-                className="w-full bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-xs font-bold py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                className="w-full bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-xs font-bold py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                <span>{isParsingText ? 'Parsing report details...' : 'Extract Scores with Gemini AI'}</span>
+                <span>{isParsingText ? 'Extracting marksheet details...' : 'Extract Marksheet with Gemini AI'}</span>
               </button>
             </div>
           </div>
@@ -526,14 +563,14 @@ Snippet:
           {/* Right Column: Dynamic registration form */}
           <form onSubmit={handleSaveAssessment} className="space-y-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100 flex flex-col justify-between">
             <div className="space-y-4">
-              <p className="text-xs font-bold text-slate-700 uppercase tracking-wide border-b border-slate-100 pb-2">Review Score Registration Details</p>
+              <p className="text-xs font-bold text-slate-700 uppercase tracking-wide border-b border-slate-100 pb-2">Record Marksheet Details</p>
               
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Target Student Profile</label>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Student Name / ID</label>
                 <select
                   value={selectedStudentIdForIntake}
-                  onChange={(e) => setSelectedStudentIdForIntake(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 font-bold"
+                  onChange={(e) => handleStudentChange(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 font-bold cursor-pointer"
                   required
                 >
                   {students.map(student => (
@@ -545,12 +582,24 @@ Snippet:
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Assessment / Test Name</label>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Term / Exam Type</label>
                 <input
                   type="text"
-                  placeholder="e.g. Unit Test 3, Trigonometric Ratios"
-                  value={assessmentName}
-                  onChange={(e) => setAssessmentName(e.target.value)}
+                  placeholder="e.g., Midterm, Finals, Unit Test 3"
+                  value={termExamType}
+                  onChange={(e) => setTermExamType(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Subject / Course</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Mathematics, Science, Chemistry"
+                  value={subjectCourse}
+                  onChange={(e) => setSubjectCourse(e.target.value)}
                   className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700"
                   required
                 />
@@ -558,40 +607,53 @@ Snippet:
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Score achieved %</label>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Marks Obtained</label>
                   <input
                     type="number"
                     min="0"
-                    max="100"
-                    value={assessmentScore}
-                    onChange={(e) => setAssessmentScore(Number(e.target.value))}
+                    placeholder="e.g., 85"
+                    value={marksObtained}
+                    onChange={(e) => setMarksObtained(e.target.value === '' ? '' : Number(e.target.value))}
                     className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 font-mono"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Date Conducted</label>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Marks</label>
                   <input
-                    type="date"
-                    value={assessmentDate}
-                    onChange={(e) => setAssessmentDate(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-mono cursor-pointer"
+                    type="number"
+                    min="1"
+                    placeholder="e.g., 100"
+                    value={totalMarks}
+                    onChange={(e) => setTotalMarks(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 font-mono"
                     required
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Date Conducted</label>
+                <input
+                  type="date"
+                  value={assessmentDate}
+                  onChange={(e) => setAssessmentDate(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-mono cursor-pointer"
+                  required
+                />
               </div>
             </div>
 
             <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-6">
               <p className="text-[10px] text-slate-400">
-                Saving will append this assessment to the student history and immediately recalculate averages and trends.
+                Saving will record the marks, calculate the percentage, and append to the student's dynamic diagnostic history.
               </p>
               <button
                 type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 px-5 rounded-xl transition-all shadow-md flex items-center gap-1.5 whitespace-nowrap"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 px-5 rounded-xl transition-all shadow-md flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
               >
-                <Plus className="w-4 h-4" /> Save Score to Dossier
+                <Plus className="w-4 h-4" /> Log Marksheet Record
               </button>
             </div>
           </form>
@@ -624,18 +686,25 @@ Snippet:
                     <th className="pb-3">Grade</th>
                     <th className="pb-3">Attendance</th>
                     <th className="pb-3 text-center">Latest Score</th>
-                    <th className="pb-3 text-center">Trend Status</th>
+                    <th className="pb-3 text-center">Performance Tag</th>
                     <th className="pb-3 pr-2 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {students.map((student) => {
-                    const trend = getStudentTrend(student.id);
                     const initials = student.name.split(' ').map(n => n[0]).join('');
                     
                     // Fetch latest recorded test score from history
                     const latestTest = student.testHistory[student.testHistory.length - 1];
                     const latestScore = latestTest ? latestTest.score : student.averageGrade;
+
+                    const currentTag = student.performanceTag || 'Consistent';
+                    let tagStyle = { bg: 'bg-blue-50 text-blue-700 border-blue-100', dot: 'bg-blue-500', label: 'Consistent' };
+                    if (currentTag === 'Improved') {
+                      tagStyle = { bg: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-500', label: 'Improved' };
+                    } else if (currentTag === 'Needs Attention') {
+                      tagStyle = { bg: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500', label: 'Needs Attention' };
+                    }
 
                     return (
                       <tr 
@@ -673,16 +742,53 @@ Snippet:
                             {latestScore}%
                           </span>
                         </td>
-                        <td className="py-4 text-center">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${trend.bg}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${trend.dot}`} />
-                            {trend.label}
-                          </span>
+                        <td className="py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          {editingStudentId === student.id ? (
+                            <select
+                              value={currentTag}
+                              onChange={(e) => {
+                                handleUpdateTag(student, e.target.value as any);
+                                setEditingStudentId(null);
+                              }}
+                              onBlur={() => setEditingStudentId(null)}
+                              className="bg-white border border-slate-200 text-[10px] font-bold py-1 px-2 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-700"
+                              autoFocus
+                            >
+                              <option value="Improved">Improved</option>
+                              <option value="Needs Attention">Needs Attention</option>
+                              <option value="Consistent">Consistent</option>
+                            </select>
+                          ) : (
+                            <div className="inline-flex items-center gap-2">
+                              <span 
+                                onClick={(e) => { e.stopPropagation(); setEditingStudentId(student.id); }}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border cursor-pointer hover:opacity-85 transition-opacity ${tagStyle.bg}`}
+                                title="Click to quick-change status tag"
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${tagStyle.dot}`} />
+                                {tagStyle.label}
+                              </span>
+                            </div>
+                          )}
                         </td>
-                        <td className="py-4 pr-2 text-right">
-                          <button className="text-slate-400 group-hover:text-indigo-600 transition-colors p-1">
-                            <ChevronRight className="w-4 h-4" />
-                          </button>
+                        <td className="py-4 pr-2 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setEditingStudentId(student.id); }}
+                              className="text-slate-400 hover:text-indigo-600 hover:bg-slate-50 transition-colors p-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                              title="Update Status Tag"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                              <span className="hidden md:inline">Update Status</span>
+                            </button>
+                            <button 
+                              onClick={() => onSelectStudent(student.id)}
+                              className="text-slate-400 hover:text-indigo-600 hover:bg-slate-50 transition-colors p-1.5 rounded-lg cursor-pointer"
+                              title="View Dossier"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

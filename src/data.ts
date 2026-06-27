@@ -30,6 +30,7 @@ export const studentsSeed: Student[] = [
     parentEmail: "rohit.mehta@gmail.com",
     parentPhone: "+91 98450 11111",
     avatarColor: "bg-indigo-100 text-indigo-700 border-indigo-200",
+    performanceTag: "Consistent",
     teacherObservation: "Responds very well to visual explanations. Confidence is clearly improving over the term.",
     aiInsight: "On an upward trajectory. Likely to struggle with upcoming coordinate geometry — revise circle theorems before the next test.",
     testHistory: [
@@ -71,6 +72,7 @@ export const studentsSeed: Student[] = [
     parentEmail: "meera.patel@yahoo.com",
     parentPhone: "+91 98450 22222",
     avatarColor: "bg-rose-100 text-rose-700 border-rose-200",
+    performanceTag: "Needs Attention",
     teacherObservation: "Attendance is dropping and she seems disengaged in Math. Needs motivation and a parent check-in.",
     aiInsight: "Risk flag: scores AND attendance both falling. Recommend a parent conversation and confidence-building work on quadratics this week.",
     testHistory: [
@@ -112,6 +114,7 @@ export const studentsSeed: Student[] = [
     parentEmail: "anil.gupta@hotmail.com",
     parentPhone: "+91 98450 33333",
     avatarColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    performanceTag: "Consistent",
     teacherObservation: "Top performer. Clearly ready for advanced and olympiad-level material.",
     aiInsight: "Under-challenged. Recommend enrichment worksheets and olympiad-level problems to keep him engaged.",
     testHistory: [
@@ -153,6 +156,7 @@ export const studentsSeed: Student[] = [
     parentEmail: "imran.khan@gmail.com",
     parentPhone: "+91 98450 44444",
     avatarColor: "bg-amber-100 text-amber-700 border-amber-200",
+    performanceTag: "Needs Attention",
     teacherObservation: "Bright but inconsistent. Foundational arithmetic gaps surface under exam time pressure.",
     aiInsight: "Volatility traced to weak fundamentals. Recommend targeted ratio & proportion revision before the next exam.",
     testHistory: [
@@ -194,6 +198,7 @@ export const studentsSeed: Student[] = [
     parentEmail: "lakshmi.reddy@yahoo.co.in",
     parentPhone: "+91 98450 55555",
     avatarColor: "bg-indigo-100 text-indigo-700 border-indigo-200",
+    performanceTag: "Consistent",
     teacherObservation: "Steady, reliable worker. Trigonometry is the main blocker holding back higher scores.",
     aiInsight: "Trigonometry identities are a recurring weakness across all three tests. Schedule a focused revision block.",
     testHistory: [
@@ -235,6 +240,7 @@ export const studentsSeed: Student[] = [
     parentEmail: "priya.nair@hotmail.com",
     parentPhone: "+91 98450 66666",
     avatarColor: "bg-teal-100 text-teal-700 border-teal-200",
+    performanceTag: "Improved",
     teacherObservation: "Remarkable turnaround this term. The remediation plan is clearly working.",
     aiInsight: "Strong improvement momentum. Introduce multi-step word problems to build interpretation skills.",
     testHistory: [

@@ -97,6 +97,7 @@ export default function StudentsView({
   const [editStudentPhone, setEditStudentPhone] = useState('');
   const [editStudentWeak, setEditStudentWeak] = useState('');
   const [editStudentStrong, setEditStudentStrong] = useState('');
+  const [editStudentPerformanceTag, setEditStudentPerformanceTag] = useState<'Improved' | 'Needs Attention' | 'Consistent'>('Consistent');
 
   const handleOpenEditModal = () => {
     if (!currentStudent) return;
@@ -113,6 +114,7 @@ export default function StudentsView({
     setEditStudentPhone(currentStudent.parentPhone);
     setEditStudentWeak(currentStudent.weakTopics.join(', '));
     setEditStudentStrong(currentStudent.strongTopics.join(', '));
+    setEditStudentPerformanceTag(currentStudent.performanceTag || 'Consistent');
     setIsEditModalOpen(true);
   };
 
@@ -135,6 +137,7 @@ export default function StudentsView({
       parentPhone: editStudentPhone,
       weakTopics: editStudentWeak ? editStudentWeak.split(',').map(s => s.trim()) : currentStudent.weakTopics,
       strongTopics: editStudentStrong ? editStudentStrong.split(',').map(s => s.trim()) : currentStudent.strongTopics,
+      performanceTag: editStudentPerformanceTag,
     };
 
     onUpdateStudent(updated);
@@ -151,16 +154,27 @@ export default function StudentsView({
 
   // Helper to map and retrieve cohesive trend states
   const getStudentTrend = (studentId: string) => {
+    const student = students.find(s => s.id === studentId);
+    if (student && student.performanceTag) {
+      const tag = student.performanceTag;
+      if (tag === 'Improved') {
+        return { label: 'Improved', bg: 'bg-emerald-50 border-emerald-100 text-emerald-700', dot: 'bg-emerald-500', icon: TrendingUp };
+      } else if (tag === 'Needs Attention') {
+        return { label: 'Needs Attention', bg: 'bg-amber-50 border-amber-100 text-amber-700', dot: 'bg-amber-500', icon: AlertTriangle };
+      } else if (tag === 'Consistent') {
+        return { label: 'Consistent', bg: 'bg-blue-50 border-blue-100 text-blue-700', dot: 'bg-blue-500', icon: CheckCircle };
+      }
+    }
     switch(studentId) {
       case 'std-diya':
-        return { label: 'At Risk', bg: 'bg-rose-50 border-rose-100 text-rose-700', dot: 'bg-rose-500', icon: AlertTriangle };
+        return { label: 'Needs Attention', bg: 'bg-amber-50 border-amber-100 text-amber-700', dot: 'bg-amber-500', icon: AlertTriangle };
       case 'std-sara':
-        return { label: 'Inconsistent', bg: 'bg-amber-50 border-amber-100 text-amber-700', dot: 'bg-amber-500', icon: ShieldAlert };
+        return { label: 'Needs Attention', bg: 'bg-amber-50 border-amber-100 text-amber-700', dot: 'bg-amber-500', icon: ShieldAlert };
       case 'std-aarav':
       case 'std-ishita':
-        return { label: 'Improving', bg: 'bg-emerald-50 border-emerald-100 text-emerald-700', dot: 'bg-emerald-500', icon: TrendingUp };
+        return { label: 'Improved', bg: 'bg-emerald-50 border-emerald-100 text-emerald-700', dot: 'bg-emerald-500', icon: TrendingUp };
       default:
-        return { label: 'Steady', bg: 'bg-indigo-50 border-indigo-100 text-indigo-700', dot: 'bg-indigo-500', icon: CheckCircle };
+        return { label: 'Consistent', bg: 'bg-blue-50 border-blue-100 text-blue-700', dot: 'bg-blue-500', icon: CheckCircle };
     }
   };
 
@@ -1252,6 +1266,19 @@ Provide only the direct insight sentence. Keep it concise (less than 35 words), 
                         <option value="green">Excellent / Improving (Green)</option>
                         <option value="amber">Watch / Inconsistent (Amber)</option>
                         <option value="red">At Risk (Red)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Performance Status Tag</label>
+                      <select
+                        value={editStudentPerformanceTag}
+                        onChange={(e) => setEditStudentPerformanceTag(e.target.value as any)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-600 cursor-pointer text-slate-600 font-bold"
+                      >
+                        <option value="Improved">Improved</option>
+                        <option value="Needs Attention">Needs Attention</option>
+                        <option value="Consistent">Consistent</option>
                       </select>
                     </div>
 

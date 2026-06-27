@@ -1,4 +1,5 @@
 export type StudentStatus = 'green' | 'amber' | 'red';
+export type PerformanceTagType = 'Improved' | 'Needs Attention' | 'Consistent';
 
 export interface TestRecord {
   id: string;
@@ -31,6 +32,7 @@ export interface Student {
   avatarColor: string;
   testHistory: TestRecord[];
   lessonHistory: LessonRecord[];
+  performanceTag?: PerformanceTagType;
   // Extra seed details
   age?: number;
   enrolled?: string;
